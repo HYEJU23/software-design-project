@@ -11,6 +11,16 @@ class CarController:
     def brake(self):
         self.car.brake()
 
+    # 브레이크 상태 제어
+    def press_brake(self):
+        self.brake_pressed = True
+
+    def release_brake(self):
+        self.brake_pressed = False
+
+    def is_brake_pressed(self):
+        return self.brake_pressed
+
     # 차량 전체 잠금 상태
     def lock_vehicle(self):
         self.car.lock_vehicle()
