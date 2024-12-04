@@ -276,6 +276,36 @@ class TestLockDoorFunctionality(unittest.TestCase):
         execute_command_callback("RIGHT_DOOR_LOCK", car_controller)
         self.assertEqual(car_controller.get_left_door_lock(), "UNLOCKED")
         self.assertEqual(car_controller.get_right_door_lock(), "UNLOCKED")
+    
+# 추가 기능 구현 (브레이크를 밟고 있을 시에만 엔진 작동 가능)
+class TestEngineFunctionality(unittest.TestCase):
+    def setUp(self):
+        self.car_controller = CarController(Car())
+
+    # 브레이크와 엔진 버튼을 동시에 누른 상태 -> 성공
+    def test_engine_starts_with_brake_and_button(self):
+        self.car_controller.press_brake()
+        execute_command_callback("ENGINE_BTN", self.car_controller)
+        self.assertTrue(self.car_controller.get_engine_status())
+
+    # 브레이크 없이 엔진 버튼만 누른 상태 -> 실패
+    def test_engine_fails_without_brake(self):
+        execute_command_callback("ENGINE_BTN", self.car_controller)
+        self.assertFalse(self.car_controller.get_engine_status())
+
+    # 차량이 움직이는 상태 -> 실패
+    def test_engine_fails_while_moving(self):
+        execute_command_callback("ACCELERATE", self.car_controller)
+        self.car_controller.press_brake()
+        execute_command_callback("ENGINE_BTN", self.car_controller)
+        self.assertFalse(self.car_controller.get_engine_status())
+
+    # 엔진이 이미 켜져 있을 때 -> 시동 OFF 성공
+    def test_engine_turns_off_when_stopped(self):
+        self.car_controller.press_brake()
+        execute_command_callback("ENGINE_BTN", self.car_controller)  # ON
+        execute_command_callback("ENGINE_BTN", self.car_controller)  # OFF
+        self.assertFalse(self.car_controller.get_engine_status())
 
 
 # execute_command를 제어하는 콜백 함수
@@ -304,14 +334,22 @@ def execute_command_callback(command, car_controller):
         # 차량이 전체 잠금 상태가 아니면 엔진을 킬 수 있음
         print("시동 ON/OFF")
 
-        if car_controller.get_lock_status() == False:
-            if car_controller.get_engine_status() == False:
-                car_controller.toggle_engine()
+        # 브레이크를 밟고 있는 상태에서만 시동 ON 가능
+        if not car_controller.get_lock_status():  # 차량 잠금 상태가 아님
+            if car_controller.get_engine_status() is False and car_controller.is_brake_pressed():
+                car_controller.toggle_engine()  # 엔진 ON
+            elif car_controller.get_engine_status() is True and car_controller.get_speed() == 0:
+                car_controller.toggle_engine()  # 엔진 OFF 가능
+            else:
+                print("엔진 작동 조건이 충족되지 않았습니다.")
 
-            # 엔진이 켜져 있을 때 속도가 0인지 확인 후 엔진을 끌 수 있는지 판단
-            elif car_controller.get_engine_status() == True:
-                if car_controller.get_speed() == 0:
-                    car_controller.toggle_engine()  # 시동 OFF 가능
+    elif command == "BRAKE":
+        print("브레이크 밟기")
+        car_controller.press_brake()  # 브레이크 상태를 ON으로 변경
+
+    elif command == "BRAKE_RELEASE":
+        print("브레이크 해제")
+        car_controller.release_brake()  # 브레이크 상태를 OFF로 변경
 
     # 송혜주
     elif command == "ACCELERATE":
